@@ -32,6 +32,8 @@
 
 详细需求见 [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)。
 
+> 🔄 **跨会话交接**：新会话请先读 [docs/HANDOVER.md](docs/HANDOVER.md)（项目状态、代码地图、运行手册、环境坑位、下一步任务）。每个里程碑/会话结束需更新它。
+
 ## 本地运行（MVP 骨架）
 
 ```bash
