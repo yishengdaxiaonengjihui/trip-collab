@@ -21,6 +21,8 @@ dist-ssr/
 .npmrc
 .eslintcache
 .vite/
+.npm-cache/
+frontend/.trip_id.txt
 
 # --- 环境变量 / 密钥 ---
 .env
