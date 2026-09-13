@@ -34,6 +34,10 @@ dist-ssr/
 *.db-journal
 uploads/
 tmp/
+backend/data/
+backend/tests/.testdbs/
+backend/tests/.pytest_tmp/
+backend/tests/tmp*
 
 # --- IDE / 编辑器 ---
 .idea/

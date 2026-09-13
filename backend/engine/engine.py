@@ -391,3 +391,114 @@ class TripEngine:
         apply_event(self._state, event)
         self.stream.append(event)
         self.snapshots[len(self.stream)] = copy.deepcopy(self._state)
+
+    # ---------------- 序列化（SQLite 持久化 / 反序列化重建） ----------------
+
+    def to_dict(self) -> dict:
+        """导出引擎全量状态（append-only 流 + 快照 + 提议 + 通知），用于持久化。"""
+        return {
+            "trip_id": self.trip_id,
+            "stream": [
+                {
+                    "seq": e.seq,
+                    "kind": e.kind,
+                    "item_id": e.item_id,
+                    "payload": e.payload,
+                    "proposal_id": e.proposal_id,
+                    "adopted_at": e.adopted_at,
+                    "meta": e.meta,
+                }
+                for e in self.stream
+            ],
+            "proposals": {pid: _proposal_to_dict(p) for pid, p in self.proposals.items()},
+            "snapshots": {
+                str(version): {"items": {iid: item_to_dict(item) for iid, item in s.items.items()}}
+                for version, s in self.snapshots.items()
+            },
+            "notifications": [
+                {"seq": n.seq, "kind": n.kind, "actor": n.actor, "payload": n.payload}
+                for n in self.notifications
+            ],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TripEngine":
+        """从 to_dict 的产物重建引擎（状态 = 最新快照副本，等价于全量回放）。"""
+        engine = cls(trip_id=data.get("trip_id"))
+        engine.stream = [StreamEvent(**e) for e in data["stream"]]
+        engine.proposals = {pid: _proposal_from_dict(p) for pid, p in data["proposals"].items()}
+        engine.snapshots = {
+            int(version): TripState(
+                items={iid: dict_to_item(item) for iid, item in s["items"].items()}
+            )
+            for version, s in data["snapshots"].items()
+        }
+        engine.notifications = [Notification(**n) for n in data["notifications"]]
+        clock_values = (
+            [n.seq for n in engine.notifications]
+            + [e.adopted_at for e in engine.stream]
+            + [
+                p.created_at
+                for p in engine.proposals.values()
+                if p.created_at is not None
+            ]
+            + [
+                v
+                for p in engine.proposals.values()
+                for v in (p.submitted_at, p.adopted_at)
+                if v is not None
+            ]
+        )
+        engine._clock = itertools.count((max(clock_values) if clock_values else 0) + 1)
+        engine._seq = itertools.count((max((e.seq for e in engine.stream), default=0)) + 1)
+        engine._state = copy.deepcopy(engine.snapshots[engine.version])
+        return engine
+
+
+def _proposal_to_dict(p: Proposal) -> dict:
+    return {
+        "id": p.id,
+        "title": p.title,
+        "reason": p.reason,
+        "created_by": p.created_by,
+        "events": [
+            {"kind": e.kind, "item_id": e.item_id, "payload": e.payload} for e in p.events
+        ],
+        "status": p.status,
+        "emergency": p.emergency,
+        "created_at": p.created_at,
+        "submitted_at": p.submitted_at,
+        "adopted_at": p.adopted_at,
+        "adopted_version": p.adopted_version,
+        "reject_reason": p.reject_reason,
+        "resolution_note": p.resolution_note,
+        "last_report": (
+            {"hard": p.last_report.hard, "warnings": p.last_report.warnings}
+            if p.last_report
+            else None
+        ),
+    }
+
+
+def _proposal_from_dict(d: dict) -> Proposal:
+    last_report = d.get("last_report")
+    return Proposal(
+        id=d["id"],
+        title=d["title"],
+        reason=d["reason"],
+        created_by=d["created_by"],
+        events=[ChangeEvent(e["kind"], e["item_id"], e.get("payload")) for e in d["events"]],
+        status=d["status"],
+        emergency=d["emergency"],
+        created_at=d["created_at"],
+        submitted_at=d["submitted_at"],
+        adopted_at=d["adopted_at"],
+        adopted_version=d["adopted_version"],
+        reject_reason=d["reject_reason"],
+        resolution_note=d["resolution_note"],
+        last_report=(
+            ConflictReport(hard=last_report["hard"], warnings=last_report["warnings"])
+            if last_report
+            else None
+        ),
+    )
