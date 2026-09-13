@@ -1,0 +1,46 @@
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# --- Node / Vite (frontend) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npmrc
+.eslintcache
+.vite/
+
+# --- 环境变量 / 密钥 ---
+.env
+.env.*
+!.env.example
+
+# --- 数据 / 运行时产物 ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+uploads/
+tmp/
+
+# --- IDE / 编辑器 ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
