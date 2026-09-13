@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0f766e">
+  <title>西安 3 日游 · 协作原型</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="tb-left">
+        <div class="trip-name" id="tripName"></div>
+        <div class="trip-meta" id="tripMeta"></div>
+      </div>
+      <div class="tb-right">
+        <span class="avatar">阿杰</span>
+        <button class="icon-btn" id="btnNotify" title="通知">🔔<span id="bellBadge" class="badge hidden"></span></button>
+      </div>
+    </header>
+
+    <main id="view"></main>
+
+    <nav id="bottomNav">
+      <button class="nav-item active" data-view="trip"><span class="nav-ico">🗺️</span><span>定稿行程</span></button>
+      <button class="nav-item" data-view="proposals"><span class="nav-ico">📋</span><span>提议</span><span id="navPendingBadge" class="badge hidden"></span></button>
+      <button class="nav-item nav-plus" data-view="new">＋</button>
+      <button class="nav-item" data-view="history"><span class="nav-ico">🕘</span><span>版本</span></button>
+      <button class="nav-item" data-view="notify"><span class="nav-ico">🔔</span><span>通知</span></button>
+    </nav>
+
+    <button id="fab" class="fab hidden">⚡ 旅途应急</button>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
