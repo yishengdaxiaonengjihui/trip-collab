@@ -3,8 +3,41 @@
 > **给下一个会话的快速启动指引**：本文件是跨会话继续工作的唯一权威入口。
 > 读完本文档后按「会话恢复指引」（§11）执行，即可无缝接续开发。
 
-- 最后更新：2026-09-13（提交 `6d597b6`）
+- 最后更新：2026-09-13（⚠️ **UI 升级进行中**：代码已改完并验证，尚未提交；最新稳定提交 `6d597b6`）
 - 维护约定：**每个里程碑完成 / 每次会话结束前 / 需求或决策变化时，必须更新本文件**并提交推送。
+
+---
+
+## ⚡ 当前进行中（2026-09-13）：UI 升级 —— 配色 + 垂直时间线 + 类型色卡
+
+**来源**：用户试用后反馈 ① 配色丑；② 行程页希望"竖着的轴按时间线展示"，不同颜色卡片标注「景区/饭店/酒店/交通」等类型。
+
+**进度：代码已改完并通过验证，唯一剩余 = git 提交推送**（工作区未提交改动即此项工作，详见下方清单）。
+
+### 已完成（全部验证过）
+
+| 改动 | 文件 | 验证 |
+|---|---|---|
+| 引擎 `Item` 新增 `time`（展示时间）+ `tag`（类型）字段 | `backend/engine/state.py`、`engine.py`（`_ITEM_FIELDS`）、`backend/app/schemas.py` | 43 测试全绿 |
+| 修复 `get_trip` 手工构造字典漏掉新字段（改用 `item_to_dict`） | `backend/app/services/trip_service.py` | 同上 |
+| 新增 API 全链路测试（created 带 time/tag → adopt → TripOut 保留） | `backend/tests/test_api.py`、`conftest.py` | ✅ |
+| 前端类型对齐 | `frontend/src/types.ts` | vue-tsc 通过 |
+| **TripView 重写为垂直时间线**：竖向渐变轴 + 类型色圆点 + 左色条卡片，天内按 `HH:MM` 排序（无时间按 position 殿后） | `frontend/src/views/TripView.vue` | obscura 渲染验证 ✅ |
+| **全局配色换暖橙旅行主题**：主色 `#f97316`；类型色 = 景区绿 `#10b981` / 饭店橙 / 酒店紫 `#8b5cf6` / 交通蓝 / 购物粉 / 其他灰；顶栏橙渐变、背景暖米白 | `frontend/src/style.css` | 同上 |
+| 新建提议支持编辑时间/类型（created 必填、updated 可选） | `frontend/src/views/NewProposalView.vue` | vue-tsc 通过 |
+| 演示数据升级为 3 天 12 条（带时间/类型/依赖） | `frontend/seed_demo.py` | 播种成功（v12） |
+| 生产构建 | — | vite build ✅（PWA 9 项预缓存） |
+
+### 剩余步骤（新会话按此续作）
+
+1. **提交推送**（唯一必做）：`git add -A && git commit -m "feat(ui): 垂直时间线 + 类型色卡 + 暖橙配色 + Item time/tag 字段" && git push`（远端私有仓库）。
+2. 给用户验收渲染效果；若有微调（颜色/布局）在此提交后追加提交。
+3. 可选：交互原型 `frontend/prototype/`（UX 实测版）尚未同步新配色/时间线——**待用户确认是否需要同步**。
+
+### 现场环境（会话若中断，重启方法见 §6）
+
+- 后端 uvicorn `:8000`（演示数据已播种：行程 `10e28618183d4e02877d02a3f396c150`，v12，3 天 12 条 + 1 条待审核提议，trip id 已写入 `frontend/.trip_id.txt`）
+- 前端 vite dev `:5173`（HMR 已生效）
 
 ---
 
@@ -44,11 +77,12 @@
 | 事件溯源引擎 `backend/engine/` | ✅ 完成（提议/采纳/回滚/冲突三型/临时备选/序列化） | 25 单测绿 |
 | 交互原型 `frontend/prototype/`（纯静态） | ✅ 完成（8 项交互断言） | 8/8 绿 |
 | **UX 实测** | ⏳ **待执行（需真人）** | 脚本见 `docs/UX_TEST.md` |
-| FastAPI 后端骨架 `backend/app/` | ✅ 完成（引擎集成 + SQLite 持久化 + 16 REST 路径 + 插件注册表） | 42 测试绿 + uvicorn 冒烟过 |
-| Vue3+Vite+PWA 前端 `frontend/src/` | ✅ 完成（五视图 + 旅途应急 + PWA） | 类型检查 + 生产构建 + 端到端联调验证过 |
-| 文档 | ✅ REQUIREMENTS(V1.3) / SPIKE / UX_TEST | — |
+| FastAPI 后端骨架 `backend/app/` | ✅ 完成（引擎集成 + SQLite 持久化 + 16 REST 路径 + 插件注册表） | **43 测试绿** + uvicorn 冒烟过 |
+| Vue3+Vite+PWA 前端 `frontend/src/` | ✅ 五视图 + 旅途应急 + PWA；🔧 **UI 升级进行中**（垂直时间线 + 类型色卡 + 暖橙配色，见顶部⚡章节） | 类型检查 + 生产构建 + 端到端验证过 |
+| 文档 | ✅ REQUIREMENTS(V1.3) / SPIKE / UX_TEST / HANDOVER | — |
 
 提交历史（main）：`28e1e38` 骨架 → `0b4b9eb` 引擎 → `5dc8ff3` gitignore → `1d53a88` 原型+UX脚本 → `9e85a1a` 后端 → `6d597b6` 前端。
+⚠️ **工作区当前有未提交改动**（UI 升级全部代码 + 43 测试 + seed 升级），提交清单见顶部⚡章节「剩余步骤」。
 
 ## 5. 架构与代码地图
 
@@ -57,7 +91,7 @@ trip-collab/
 ├── backend/
 │   ├── engine/            # 事件溯源引擎（纯逻辑，零依赖）
 │   │   ├── events.py      #   ChangeEvent(提议内) / StreamEvent(定稿流)，append-only
-│   │   ├── state.py       #   Item{id,day,position,title,refs,amount,note} / TripState / apply_event
+│   │   ├── state.py       #   Item{id,day,position,title,refs,amount,note,time,tag} / TripState / apply_event
 │   │   ├── conflicts.py   #   detect_conflicts：硬冲突(并发改同条目/目标失效)、软冲突告警、隐性依赖告警
 │   │   ├── engine.py      #   TripEngine：提议状态机、adopt/rollback/emergency/formalize/revoke、
 │   │   │                  #   to_dict/from_dict 序列化（持久化边界）
@@ -70,7 +104,7 @@ trip-collab/
 │   │   ├── services/trip_service.py  # 业务编排：加载引擎→动作→保存；TripNotFoundError
 │   │   ├── routers/       #   trips/proposals/versions/members/plugins + deps.py(错误映射)
 │   │   └── plugins/registry.py  # 插件降级注册表雏形（weather/poi Mock，degraded 标记）
-│   └── tests/             # 25 引擎 + 3 序列化 + 14 API = 42 测试
+│   └── tests/             # 25 引擎 + 3 序列化 + 15 API = 43 测试
 │       └── .testdbs/      #   沙箱兼容：测试 db 固定目录（勿删，gitignore）
 ├── frontend/
 │   ├── prototype/         # 第 0 周交互原型（纯静态，UX 实测用它）
@@ -101,7 +135,7 @@ npm run dev        # http://localhost:5173（/api 自动代理到 8000）
 # 演示数据（后端起来后，frontend/ 下）
 python seed_demo.py
 # 后端全量测试（仓库根目录）
-python -m pytest   # 42 passed
+python -m pytest   # 43 passed
 # 前端类型检查 + 生产构建（frontend/ 下）
 node node_modules/vue-tsc/bin/vue-tsc.js -b && node node_modules/vite/bin/vite.js build
 ```
@@ -137,11 +171,12 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 
 | # | 任务 | 说明 | 前置 |
 |---|---|---|---|
-| 1 | **UX 实测（唯一需真人）** | 按 `docs/UX_TEST.md` 招募 3~5 名真实出行群体，用 `frontend/prototype/index.html` 走场景 A-D，按判据判定 | 无（用户本人参与） |
+| 0 | **UI 升级收尾（立即）** | 提交推送工作区未提交改动（引擎 time/tag + 前端时间线/配色 + 43 测试），提交信息建议：`feat(ui): 垂直时间线 + 类型色卡 + 暖橙配色 + Item time/tag 字段`；推完后给用户验收渲染 | 无 |
+| 1 | **UX 实测（唯一需真人）** | 按 `docs/UX_TEST.md` 招募 3~5 名真实出行群体，用 `frontend/prototype/index.html` 走场景 A-D，按判据判定（**注意**：原型尚未同步新配色/时间线，是否同步待用户确认） | 无（用户本人参与） |
 | 2 | MVP 业务功能（实测通过后） | 邀请/角色权限落地、**最简 AI 生成提议到草稿**（LLM 把口语描述转引擎事件）、离线只读（PWA SW 已有雏形）、通知通道 | UX 实测通过 |
 | 3 | 待审核卡片**预测性告警** | 引擎目前采纳时刻才检测冲突（last_report），前端待审核卡片无预先告警（与原型 mock 有差异）——扩展：create/submit 时预检并存 last_report；或等 UX 实测反馈再定 | UX 实测反馈 |
 | 4 | 讨论区/评论 | API 未实现（原型有 mock 评论），MVP 后置项 | 后置 |
-| 5 | 时间字段建模 | 引擎 Item 无 time 字段（原型 mock 有），当前用 note 承载显示——若需求升级需加字段 | 后置 |
+| 5 | ~~时间字段建模~~ | ✅ **已实现（2026-09-13）**：`Item.time`（展示时间，时间线排序/显示）+ `Item.tag`（类型） | — |
 | 6 | 插件升级 | weather/poi 从 Mock 换真实供应商（保持 degraded 降级语义） | 阶段 2 |
 | 7 | 许可证决策 | TripStar GPL-2.0 模块移植与否直接影响发布许可证（TBD） | 任何对外发布前 |
 
@@ -150,13 +185,15 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 - **待审核告警展示**：采纳时刻检测（当前）vs 提交时刻预检（原型 UX）。倾向：UX 实测里观察用户是否困惑于"采纳时才弹窗"。
 - **emergency 语义**：提交即采纳、可 formalize/revoke（逆操作恢复采纳前快照），已定稿实现。
 - **版本起始**：新行程 v0（空事件流）；首个采纳 → v1。前端显示 v0。
+- **时间/类型字段**：✅ 已落地（2026-09-13）。`time` 存展示时间字符串（"HH:MM"，前端解析排序，无时间按 position 殿后）；`tag` 存中文类型值（景区/饭店/酒店/交通/购物/其他，空=其他），前端映射颜色。待议：是否引入枚举校验/多语言（MVP 暂用自由字符串）。
+- **条目类型体系**：当前 6 类（景区/饭店/酒店/交通/购物/其他）由前端 `TripView.vue` 的 `TAG_CLASS` 映射颜色；新增类型只需加映射。是否支持自定义标签待 UX 反馈。
 - **评论/投票**：需求 V1.3 后置；不阻塞 MVP 骨架。
 
 ## 11. 会话恢复指引（新会话第一件事）
 
 1. 读本文件（`docs/HANDOVER.md`）→ 读 `docs/REQUIREMENTS.md` 对应章节。
 2. 确认仓库状态：`git status -sb`（应干净）+ `git log --oneline`（对照 §4 提交历史）。
-3. 跑基线验证：`python -m pytest`（应 42 passed）。
+3. 跑基线验证：`python -m pytest`（应 43 passed）。
 4. 若任务涉及前后端运行：按 §6 启动 + `python frontend/seed_demo.py` 播种。
 5. 先处理 §9 清单顶部的任务；遇到环境问题查 §8。
 6. **会话结束时**：把进展/决策/坑更新进本文件（更新日期与提交号），提交推送。
