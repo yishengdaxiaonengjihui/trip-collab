@@ -11,7 +11,7 @@ def engine():
     return TripEngine(trip_id="test-trip")
 
 
-def make_item(item_id: str, day: int, position: int, title: str, refs=None, amount=None, note=""):
+def make_item(item_id: str, day: int, position: int, title: str, refs=None, amount=None, note="", time="", tag=""):
     """构造 created 事件 payload（id 必须与事件 item_id 一致）。"""
     return {
         "id": item_id,
@@ -21,6 +21,8 @@ def make_item(item_id: str, day: int, position: int, title: str, refs=None, amou
         "refs": list(refs or []),
         "amount": amount,
         "note": note,
+        "time": time,
+        "tag": tag,
     }
 
 

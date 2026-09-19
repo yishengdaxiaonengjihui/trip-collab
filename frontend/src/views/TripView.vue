@@ -18,9 +18,34 @@ const quickBusy = ref(false);
 const days = computed(() => {
   if (!trip.value) return [];
   return Object.entries(trip.value.days)
-    .map(([day, items]) => ({ day: Number(day), items }))
+    .map(([day, items]) => ({ day: Number(day), items: [...items].sort((a, b) => timeKey(a).localeCompare(timeKey(b))) }))
     .sort((a, b) => a.day - b.day);
 });
+
+// 时间线排序键：有 HH:MM 时间的按时间排，无时间的按 position 排最后
+function timeKey(it: Item): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(it.time || "");
+  if (m) return "T" + m[1].padStart(2, "0") + m[2];
+  return "Z" + String(it.position).padStart(4, "0");
+}
+
+const TAG_CLASS: Record<string, string> = {
+  景区: "tag-scenic",
+  饭店: "tag-food",
+  酒店: "tag-hotel",
+  交通: "tag-transport",
+  购物: "tag-shopping",
+};
+
+function tagClass(tag: string): string {
+  return TAG_CLASS[tag] || "tag-other";
+}
+
+const DAY_THEMES = ["抵达 · 市区", "东线 · 人文", "市区 · 返程", "远郊 · 自然"];
+
+function dayTheme(day: number): string {
+  return DAY_THEMES[(day - 1) % DAY_THEMES.length];
+}
 
 async function load() {
   loading.value = true;
@@ -85,16 +110,24 @@ onMounted(load);
         ⚠️ 有 {{ trip.pending_count }} 条待审核提议：采纳后才会改定稿 →
       </div>
 
-      <div v-for="d in days" :key="d.day" class="card day-card">
-        <div class="day-head">
+      <div v-for="d in days" :key="d.day" class="timeline">
+        <div class="tl-day-head">
           <span class="day-tag">第 {{ d.day }} 天</span>
-          <span class="day-title">{{ d.day === 1 ? "抵达 · 市区" : d.day === 2 ? "东线 · 兵马俑" : "市区 · 返程" }}</span>
+          <span class="day-title">{{ dayTheme(d.day) }}</span>
         </div>
-        <div v-for="it in d.items" :key="it.id" class="item-row">
-          <span class="item-time">{{ it.note || "—" }}</span>
-          <div style="flex: 1">
-            <div class="item-title">{{ it.title }}</div>
-            <div class="item-sub" v-if="it.refs.length">依赖：{{ it.refs.join("、") }}</div>
+        <div class="tl-items">
+          <div v-for="it in d.items" :key="it.id" class="tl-item">
+            <div class="tl-rail">
+              <span class="tl-dot" :class="tagClass(it.tag)"></span>
+            </div>
+            <div class="tl-card" :class="tagClass(it.tag)">
+              <div class="tl-top">
+                <span class="tl-time">{{ it.time || "—" }}</span>
+                <span class="tl-tag">{{ it.tag || "其他" }}</span>
+              </div>
+              <div class="tl-title">{{ it.title }}</div>
+              <div class="tl-sub" v-if="it.refs.length">依赖：{{ it.refs.join("、") }}</div>
+            </div>
           </div>
         </div>
       </div>

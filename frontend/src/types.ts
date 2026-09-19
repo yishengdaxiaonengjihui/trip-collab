@@ -8,6 +8,8 @@ export interface Item {
   refs: string[];
   amount: number | null;
   note: string;
+  time: string; // 展示时间，如 "09:30"
+  tag: string; // 条目类型：景区/饭店/酒店/交通/购物/其他（空=其他）
 }
 
 export interface Member {

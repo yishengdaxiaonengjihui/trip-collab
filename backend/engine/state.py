@@ -18,6 +18,8 @@ class Item:
     refs: list[str] = field(default_factory=list)  # 显式依赖：本条目依赖的其它条目 id
     amount: float | None = None  # MVP 仅预留字段，不做自动计算
     note: str = ""
+    time: str = ""  # 展示时间（如 "09:30"），时间线排序与显示用
+    tag: str = ""  # 条目类型：景区 / 饭店 / 酒店 / 交通 / 购物 / 其他（空=其他）
 
 
 def item_to_dict(item: Item) -> dict:
@@ -29,6 +31,8 @@ def item_to_dict(item: Item) -> dict:
         "refs": list(item.refs),
         "amount": item.amount,
         "note": item.note,
+        "time": item.time,
+        "tag": item.tag,
     }
 
 
@@ -41,6 +45,8 @@ def dict_to_item(data: dict) -> Item:
         refs=list(data.get("refs") or []),
         amount=data.get("amount"),
         note=data.get("note") or "",
+        time=data.get("time") or "",
+        tag=data.get("tag") or "",
     )
 
 

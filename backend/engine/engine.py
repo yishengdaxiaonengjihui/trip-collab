@@ -45,7 +45,7 @@ STATUS_ADOPTED = "adopted"  # 已采纳（含 emergency 提交即采纳）
 STATUS_REJECTED = "rejected"  # 已拒绝
 STATUS_REVOKED = "revoked"  # 已撤销（仅 emergency 提议）
 
-_ITEM_FIELDS = ("day", "position", "title", "refs", "amount", "note")
+_ITEM_FIELDS = ("day", "position", "title", "refs", "amount", "note", "time", "tag")
 
 
 @dataclass

@@ -24,6 +24,7 @@ from backend.engine.errors import (
     TripCollabError,
 )
 from backend.engine.events import ChangeEvent
+from backend.engine.state import item_to_dict
 
 from ..db import TripRepo
 from ..schemas import AdoptIn, ProposalCreate, ProposalOut, TripOut
@@ -99,17 +100,7 @@ class TripService:
         items = engine.state().items
         days: dict[int, list[dict]] = {}
         for it in sorted(items.values(), key=lambda x: (x.day, x.position, x.id)):
-            days.setdefault(it.day, []).append(
-                {
-                    "id": it.id,
-                    "day": it.day,
-                    "position": it.position,
-                    "title": it.title,
-                    "refs": list(it.refs),
-                    "amount": it.amount,
-                    "note": it.note,
-                }
-            )
+            days.setdefault(it.day, []).append(item_to_dict(it))
         return {
             "id": meta["id"],
             "name": meta["name"],

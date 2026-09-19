@@ -371,3 +371,39 @@ def test_state_persists_across_app_reload():
         assert trip2["days"]["1"][0]["title"] == "D1 高铁 G8888"
         proposals = c.get(f"/api/trips/{trip['id']}/proposals").json()
         assert proposals[0]["status"] == "adopted"
+
+
+# ---------------- 时间线字段：time / tag 全链路 ----------------
+
+def test_item_time_tag_roundtrip(client):
+    """created 携带 time/tag -> 采纳 -> TripOut 与重启后均保留。"""
+    trip = new_trip(client)
+    pid = create_pending(
+        client,
+        trip["id"],
+        title="带时间类型条目",
+        events=[
+            {
+                "kind": "created",
+                "item_id": "spot1",
+                "payload": make_item(
+                    "spot1", 1, 1, "秦始皇兵马俑", note="需提前订票", time="09:00", tag="景区"
+                ),
+            },
+            {
+                "kind": "created",
+                "item_id": "hotel1",
+                "payload": make_item("hotel1", 1, 2, "全季酒店", time="21:00", tag="酒店"),
+            },
+        ],
+    )
+    r = client.post(f"/api/trips/{trip['id']}/proposals/{pid}/adopt", json={"confirmed": True})
+    assert r.status_code == 200, r.text
+
+    trip_out = client.get(f"/api/trips/{trip['id']}").json()
+    by_id = {i["id"]: i for day in trip_out["days"].values() for i in day}
+    assert by_id["spot1"]["time"] == "09:00"
+    assert by_id["spot1"]["tag"] == "景区"
+    assert by_id["spot1"]["note"] == "需提前订票"
+    assert by_id["hotel1"]["time"] == "21:00"
+    assert by_id["hotel1"]["tag"] == "酒店"

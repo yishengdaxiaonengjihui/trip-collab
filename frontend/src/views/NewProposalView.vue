@@ -22,8 +22,12 @@ interface EventRow {
   day?: number;
   position?: number;
   note?: string;
+  time?: string;
+  tag?: string;
   refs?: string;
 }
+
+const TAGS = ["景区", "饭店", "酒店", "交通", "购物", "其他"];
 
 const rows = reactive<EventRow[]>([{ kind: "updated", item_id: "" }]);
 
@@ -60,6 +64,8 @@ function toEvents(): ChangeEventIn[] {
             position: r.position ?? 0,
             title: r.title.trim(),
             note: r.note || "",
+            time: r.time || "",
+            tag: r.tag || "",
             refs: (r.refs || "").split(/[，,]/).map((s) => s.trim()).filter(Boolean),
             amount: null,
           },
@@ -69,6 +75,8 @@ function toEvents(): ChangeEventIn[] {
       const payload: Record<string, unknown> = {};
       if (r.title !== undefined && r.title !== "") payload.title = r.title;
       if (r.note !== undefined && r.note !== "") payload.note = r.note;
+      if (r.time !== undefined && r.time !== "") payload.time = r.time;
+      if (r.tag !== undefined && r.tag !== "") payload.tag = r.tag;
       if (Object.keys(payload).length && r.item_id) events.push({ kind: "updated", item_id: r.item_id, payload });
     }
   }
@@ -133,11 +141,25 @@ async function submit() {
             <option v-for="it in items" :key="it.id" :value="it.id">{{ it.title }}</option>
           </select>
           <input v-model="r.title" placeholder="新标题（留空则不改）" />
+          <div class="row-grid">
+            <input v-model="r.time" placeholder="新时间，如 10:30" />
+            <select v-model="r.tag">
+              <option value="" disabled>类型不变</option>
+              <option v-for="t in TAGS" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
         </template>
 
         <template v-else-if="r.kind === 'created'">
           <input v-model="r.title" placeholder="新条目标题，如：陕西历史博物馆" />
-          <input v-model="r.note" placeholder="备注/时间，如：14:00" />
+          <div class="row-grid">
+            <input v-model="r.time" placeholder="时间，如 14:00" />
+            <select v-model="r.tag">
+              <option value="" disabled>选择类型…</option>
+              <option v-for="t in TAGS" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+          <input v-model="r.note" placeholder="备注，如：需提前订票" />
           <input v-model.number="r.day" type="number" min="1" placeholder="第几天" />
         </template>
 

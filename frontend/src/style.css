@@ -1,19 +1,28 @@
-/* 移动端优先全局样式（与交互原型风格一致：卡片 / 弹窗 sheet / toast / 底部导航 / FAB） */
+/* 移动端优先全局样式——暖橙旅行主题（v2 配色）
+   主色：#f97316 橙；背景：暖米白；类型色：景区绿/饭店橙/酒店紫/交通蓝/购物粉/其他灰 */
 
 :root {
-  --teal: #0f766e;
-  --teal-dark: #115e59;
-  --bg: #f0fdfa;
+  --primary: #f97316;
+  --primary-dark: #ea580c;
+  --primary-soft: #fff4ed;
+  --bg: #faf7f2;
   --card: #ffffff;
-  --ink: #1e293b;
-  --sub: #64748b;
-  --line: #e2e8f0;
+  --ink: #292524;
+  --sub: #78716c;
+  --line: #e9e2d8;
   --warn: #b45309;
   --warn-bg: #fef3c7;
   --danger: #b91c1c;
   --danger-bg: #fee2e2;
   --ok-bg: #dcfce7;
   --radius: 14px;
+  /* 条目类型色 */
+  --tag-scenic: #10b981;       --tag-scenic-soft: #ecfdf5;
+  --tag-food: #f97316;         --tag-food-soft: #fff7ed;
+  --tag-hotel: #8b5cf6;        --tag-hotel-soft: #f5f3ff;
+  --tag-transport: #3b82f6;    --tag-transport-soft: #eff6ff;
+  --tag-shopping: #ec4899;     --tag-shopping-soft: #fdf2f8;
+  --tag-other: #64748b;        --tag-other-soft: #f1f5f9;
 }
 
 * {
@@ -49,8 +58,9 @@ body {
   gap: 10px;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top));
-  background: linear-gradient(180deg, #0f766e, #0d9488);
+  background: linear-gradient(135deg, #fb923c, #f97316 55%, #ea580c);
   color: #fff;
+  box-shadow: 0 2px 12px rgba(234, 88, 12, 0.25);
 }
 
 .topbar .back {
@@ -136,7 +146,7 @@ body {
 }
 
 .day-tag {
-  background: var(--teal);
+  background: var(--primary);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -162,7 +172,7 @@ body {
 }
 
 .item-time {
-  color: var(--teal);
+  color: var(--primary);
   font-weight: 700;
   font-size: 12px;
   min-width: 42px;
@@ -230,7 +240,7 @@ body {
   cursor: pointer;
 }
 
-.btn-primary { background: var(--teal); color: #fff; }
+.btn-primary { background: linear-gradient(135deg, #fb923c, #f97316); color: #fff; }
 .btn-primary:disabled { opacity: 0.5; }
 .btn-ghost { background: var(--line); color: var(--ink); }
 .btn-danger { background: var(--danger-bg); color: var(--danger); }
@@ -273,7 +283,7 @@ body {
   gap: 2px;
 }
 
-.nav-item.active { color: var(--teal); font-weight: 700; }
+.nav-item.active { color: var(--primary); font-weight: 700; }
 .nav-ico { font-size: 18px; }
 
 /* ---------- FAB（旅途应急） ---------- */
@@ -373,6 +383,11 @@ body {
 }
 
 .event-row .row-top select { flex: 1; }
+.event-row .row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 .event-row .del-btn {
   background: var(--danger-bg);
   color: var(--danger);
@@ -404,9 +419,9 @@ body {
 }
 
 /* ---------- 版本卡 ---------- */
-.v-card.current { border: 1.5px solid var(--teal); }
+.v-card.current { border: 1.5px solid var(--primary); }
 
-.v-ver { font-weight: 800; font-size: 15px; color: var(--teal); }
+.v-ver { font-weight: 800; font-size: 15px; color: var(--primary); }
 
 /* ---------- 通知 ---------- */
 .n-item {
@@ -471,4 +486,112 @@ body {
   white-space: nowrap;
 }
 
-.tab.active { background: var(--teal); color: #fff; }
+.tab.active { background: var(--primary); color: #fff; }
+
+/* ---------- 垂直时间线（行程定稿） ---------- */
+.timeline { margin: 4px 0 18px; }
+
+.tl-day-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 2px 10px;
+}
+
+.tl-items {
+  position: relative;
+  padding-left: 2px;
+}
+
+/* 竖向主轴：暖色渐变 */
+.tl-items::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: linear-gradient(180deg, #fbbf24, #fdba74 45%, #fca5a5);
+  border-radius: 2px;
+}
+
+.tl-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* 左侧节点区 */
+.tl-rail {
+  width: 20px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.tl-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c, var(--tag-other));
+  border: 2.5px solid var(--bg);
+  box-shadow: 0 0 0 1.5px var(--c, var(--tag-other));
+  margin-top: 17px;
+}
+
+/* 类型色卡：左边框 + 圆点 + 徽章共用 --c/--cs */
+.tl-card.tag-scenic { --c: var(--tag-scenic); --cs: var(--tag-scenic-soft); }
+.tl-card.tag-food { --c: var(--tag-food); --cs: var(--tag-food-soft); }
+.tl-card.tag-hotel { --c: var(--tag-hotel); --cs: var(--tag-hotel-soft); }
+.tl-card.tag-transport { --c: var(--tag-transport); --cs: var(--tag-transport-soft); }
+.tl-card.tag-shopping { --c: var(--tag-shopping); --cs: var(--tag-shopping-soft); }
+.tl-card.tag-other { --c: var(--tag-other); --cs: var(--tag-other-soft); }
+
+.tl-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--card);
+  border-radius: 14px;
+  border-left: 3px solid var(--c, var(--tag-other));
+  padding: 10px 12px;
+  box-shadow: 0 1px 3px rgba(41, 37, 36, 0.06), 0 4px 12px rgba(41, 37, 36, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tl-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tl-time {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--c, var(--tag-other));
+  letter-spacing: 0.3px;
+}
+
+.tl-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c, var(--tag-other));
+  background: var(--cs, var(--tag-other-soft));
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.tl-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.tl-sub {
+  color: var(--sub);
+  font-size: 11px;
+}

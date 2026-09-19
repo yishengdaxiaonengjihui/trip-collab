@@ -17,6 +17,8 @@ class ItemIn(BaseModel):
     refs: list[str] = Field(default_factory=list)
     amount: Optional[float] = None
     note: str = ""
+    time: str = ""  # 展示时间，如 "09:30"
+    tag: str = ""  # 条目类型：景区/饭店/酒店/交通/购物/其他（空=其他）
 
 
 class ItemOut(ItemIn):
