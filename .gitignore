@@ -5,6 +5,9 @@ __pycache__/
 .venv/
 venv/
 env/
+.pydeps/
+.wheels/
+.tmp/
 .pytest_cache/
 pytest-cache-files-*/
 .coverage

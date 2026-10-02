@@ -3,8 +3,50 @@
 > **给下一个会话的快速启动指引**：本文件是跨会话继续工作的唯一权威入口。
 > 读完本文档后按「会话恢复指引」（§11）执行，即可无缝接续开发。
 
-- 最后更新：2026-09-13（UI 升级已完成并推送，最新提交 `5ffa601`）
+- 最后更新：2026-10-02（接入新的开发机/工作区，业务代码未改）
 - 维护约定：**每个里程碑完成 / 每次会话结束前 / 需求或决策变化时，必须更新本文件**并提交推送。
+
+---
+
+## 🖥 2026-10-02 会话记录：新开发机接入（业务代码未改，仅环境 + .gitignore）
+
+本次只做环境接入与基线验证，**没有修改任何业务代码**，等用户上线后再定开发方向。
+
+| 项 | 本机取值 |
+|---|---|
+| 工作区 / 本地路径 | 工作区 `D:\dsh\trip project`，仓库 `D:\dsh\trip project\trip-collab` |
+| 远程 | `https://github.com/yishengdaxiaonengjihui/trip-collab`（PRIVATE，HTTPS 方式克隆） |
+| gh | `D:\apps\GitHub CLI\gh.exe`（**不在 PATH**，必须写全路径），登录账号 `szxdejieju`（对该仓库有 pull/push 权限） |
+| git 提交身份 | 仓库级 `user.name=yishengdaxiaonengjihui` + GitHub noreply 邮箱（用户 2026-10-02 选定） |
+| Python | `D:\apps\miniconda3\python.exe`（3.14）；依赖装在仓库内 `.pydeps/`（已 gitignore） |
+| 后端依赖 | fastapi 0.142.2 / uvicorn 0.54.0 / httpx 0.28.1 / pytest 9.1.1 |
+| 基线验证 | `python -m pytest` → **43 passed**（2026-10-02 实测） |
+
+### 本机环境坑位（补充 §8，新机必读）
+
+1. **git 的 schannel 后端在本机不可用**（`SEC_E_NO_CREDENTIALS`，curl.exe 同样报错；与 DSH 沙箱无关）。拉取/推送请显式指定 openssl：
+   ```powershell
+   git -c http.sslBackend=openssl pull
+   # 私有仓库鉴权（token 走 gh，不落盘）：
+   $b64=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:"+(& 'D:\apps\GitHub CLI\gh.exe' auth token)))
+   git -c http.sslBackend=openssl -c credential.helper= -c http.extraHeader="Authorization: Basic $b64" push
+   ```
+   （不要再用 HANDOVER 旧版里的 `core.sshCommand`/`gh-proxy` 改写，本机走 HTTPS 直连即可。）
+2. **`pip install` 必须提权**（`sandbox_permissions=danger-full-access`）：普通权限下 pip 在工作区内建临时目录会被沙箱拒绝。
+3. **提权运行产生的目录，普通权限的后续命令读不到**（`.pydeps/`、`.tmp/` 实测 Permission denied）→ 跑测试/起服务都要带同等级提权：
+   ```powershell
+   $env:PYTHONPATH='D:\dsh\trip project\trip-collab\.pydeps'; & 'D:\apps\miniconda3\python.exe' -m pytest -q
+   ```
+4. 前端 `node_modules/` 尚未安装；要用时按 §8 第 2 条（`npm install --ignore-scripts` + 工作区内缓存 + 提权）。
+5. 用户明确选择：**沙箱保持现状，按需逐条申请提权**（不切完全权限）。
+6. 工作区根目录 ACL 曾被修复过（DSH 沙箱无法为 `D:\dsh\trip project` 授权），恢复脚本在 `D:\dsh\acl-recovery-trip\`。
+
+### 明天上线后的待办（用户验收后再定）
+
+| # | 事项 | 说明 |
+|---|---|---|
+| 1 | 用户验收 UI（`5ffa601` 的垂直时间线 + 暖橙配色 + 类型色卡） | 需先起后端 8000 + 前端 5173 + `python frontend/seed_demo.py` |
+| 2 | 二选一开工：**MVP 业务功能**（AI 生成提议草稿、通知/邀请） 或 **待审核卡片预测性告警**（HANDOVER §9 #2/#3） | 用户 2026-10-02 表示"明天上线再过" |
 
 ---
 
