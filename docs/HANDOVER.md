@@ -316,3 +316,31 @@ git -c http.sslBackend=openssl push origin main   # 必须提权 danger-full-acc
 沙箱下直接 push 会失败于 `could not read Username`，根因是 `credential.helper = manager` 需要启动子进程，而 MSYS `sh.exe`/`bash.exe` 在沙箱里创建信号管道被拒（`fatal error - couldn't create signal pipe, Win32 error 5`）。**不是网络问题，也不是凭据失效**——提权后立刻成功。
 
 另：**github.com 直连目前是通的**（`20.205.243.166:443` TLS 握手正常，本次推送未走代理），早前记录的中继（`.gh-relay.py`）本轮实测全部候选 IP 均不可达；该脚本留作备用，判断依据是「直连失败时先重试一次」——本轮首次 push 的 21 秒连接超时属瞬时抖动，重试即可。
+
+### ✅ 部署已上线（2026-10-05）
+
+```
+Deployed app triggers (2.66 sec)
+  https://app.trip-collab.workers.dev
+Current Version ID: 6c37c9bc-0b5c-406c-80d4-7578d9b9b56c
+```
+
+邮箱验证通过后一次成功（`exit=0`）。注意 `deploy` 必须用**仓库内**的 CLI 路径：
+
+```powershell
+& 'D:\apps\nodejs\node.exe' 'D:\dsh\trip project\trip-collab\.tools\wrangler\node_modules\wrangler\wrangler-dist\cli.js' deploy
+```
+
+### ⚠️ 但 `*.workers.dev` 在本地网络被 DNS 污染
+
+实测同一时刻、三个解析器对同一域名给出**三个互相矛盾的假 IP**，而对照组解析完全正常——这是典型的投毒特征：
+
+| 域名 | @223.5.5.5 | @8.8.8.8 | @119.29.29.29 |
+|---|---|---|---|
+| `app.trip-collab.workers.dev` | `154.85.102.30` ❌ | `204.79.197.217` ❌ | `31.13.94.37` ❌ |
+| `…trycloudflare.com`（对照） | `104.16.231.132` ✅ | `104.16.231.132` ✅ | `104.16.230.132` ✅ |
+| `github.com`（对照） | `20.205.243.166` ✅ | 同左 ✅ | 同左 ✅ |
+
+**结论：站点部署成功、全球可达，但本机所在网络打不开 `workers.dev`。** 绕开办法是给 Worker 绑**自有域名**（Cloudflare 自定义域名走 anycast，对照组证明该网络能正常解析并连通 Cloudflare IP），或访问时走代理。
+
+另注：本机网络本身也不稳定——排查期间 `github.com` 的 HTTPS 在 20 分钟内从 200 变成连接超时，tunnel 从 200 变成 ECONNRESET。**验证线上站点时若失败，先隔几分钟重试再下结论。**
