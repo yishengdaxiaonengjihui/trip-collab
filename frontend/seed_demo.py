@@ -3,6 +3,8 @@
 幂等说明：每次运行会新建一个行程（不清理旧数据）。
 """
 
+from pathlib import Path
+
 import httpx
 
 BASE = "http://127.0.0.1:8000"
@@ -80,6 +82,6 @@ print("pending proposal:", p2["id"])
 t = httpx.get(f"{BASE}/api/trips/{tid}").json()
 print("final version:", t["version"], "days:", list(t["days"].keys()), "条目:", sum(len(v) for v in t["days"].values()))
 
-with open(r"D:\dsh\tour\trip-collab\frontend\.trip_id.txt", "w") as f:
+with open(Path(__file__).with_name(".trip_id.txt"), "w", encoding="utf-8") as f:
     f.write(tid)
 print("trip_id written:", tid)
