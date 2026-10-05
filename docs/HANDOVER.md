@@ -344,3 +344,57 @@ Current Version ID: 6c37c9bc-0b5c-406c-80d4-7578d9b9b56c
 **结论：站点部署成功、全球可达，但本机所在网络打不开 `workers.dev`。** 绕开办法是给 Worker 绑**自有域名**（Cloudflare 自定义域名走 anycast，对照组证明该网络能正常解析并连通 Cloudflare IP），或访问时走代理。
 
 另注：本机网络本身也不稳定——排查期间 `github.com` 的 HTTPS 在 20 分钟内从 200 变成连接超时，tunnel 从 200 变成 ECONNRESET。**验证线上站点时若失败，先隔几分钟重试再下结论。**
+
+## 14. 上线方案变更：改用 Hugging Face Spaces（2026-10-06 决策，待执行）
+
+### 为什么改
+
+用户目标收窄为：**中国高中研究性报告演示，让别人能通过互联网打开**，明确接受「会休眠」「数据不持久」。
+
+- Cloudflare Workers 那条路已打通但 `workers.dev` 被 DNS 污染（§12），且后端仍跑在本机 → 关机即不可用
+- 买域名 + VPS 对「一次性演示」成本过高
+- **Hugging Face Spaces（Docker SDK，免费档 2 vCPU / 16GB）** 免备案、免信用卡、有公开 HTTPS 域名
+
+### 可行性实测（2026-10-06）
+
+```
+hf.space 应用域：12 个真实 Space 逐一请求 → 11 个响应（200/404/503），零超时零重置 ✅
+huggingface.co 管理站：hosts 文件 127.0.0.1 + DNS 投毒（162.125.80.3 / 104.244.43.182）❌
+```
+
+**结论：别人访问应用不需要代理；只有「创建/上传 Space」这一步需要一次性代理。**
+
+### 关键技术判断（省掉大量工作）
+
+前端调 API 用的是**相对路径 `/api/...`**（`worker/index.js` 只是同源反代）。因此把**前端构建产物和后端塞进同一个容器**即可：
+
+> Worker、`API_ORIGIN`、Cloudflare 隧道、CORS、地址漂移 —— 五个麻烦全部消失。
+
+而「数据不持久」在本场景是**优点**：容器启动时用已有的 `frontend/seed_demo.py` 灌演示数据 → 每次唤醒都是干净、满数据的演示环境。
+
+### 待产出文件（下次会话直接做，预计 1 轮）
+
+| 文件 | 内容 |
+|---|---|
+| `Dockerfile`（新增） | 多阶段：node 构建 `frontend/` → `dist/`；python 运行时装 `backend/requirements.txt`，COPY dist，监听 **7860** |
+| `README.md`（新增元数据） | `sdk: docker` + `app_port: 7860` |
+| `backend/app/main.py` | 挂载 `StaticFiles(directory=..., html=True)` + SPA fallback（约 10 行） |
+| 启动脚本 | 容器启动时 `python seed_demo.py`，再 `uvicorn` |
+
+验收方式：本机 `docker build` + `docker run -p 7860:7860` 跑通，再上传。
+
+### 用户侧三步（只有这三步做不了，必须用户本人）
+
+1. 注册 HF 账号 —— **需要代理**（`huggingface.co` 被墙）
+2. New Space → SDK 选 **Docker** → 命名 `trip-collab` → 得到 `https://<用户名>-trip-collab.hf.space`
+3. 上传项目（网页拖拽或 `git push`）
+
+### 已知代价（已与用户确认接受）
+
+- 休眠后冷启动 1–2 分钟 → **演示前先访问一次预热**
+- 容器重启数据清零；上传的图片同理 → 若演示需传图，先改成内置示例图
+- 首次构建可能排队
+
+### 定论
+
+Cloudflare Workers 那份（§12）保留不动，作为冗余入口。**域名不必买**，VPS 方案搁置。
