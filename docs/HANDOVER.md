@@ -45,16 +45,13 @@
 ### 本机环境坑位（补充 §8，新机必读）
 
 1. **git 的 schannel 后端在本机不可用**（`SEC_E_NO_CREDENTIALS`，curl.exe 同样报错；与 DSH 沙箱无关）→ 所有远程操作都要显式 `-c http.sslBackend=openssl`。
-2. **`github.com` 的 443 被黑洞**（本机实测：`github.com` 解析到 `20.205.243.166`，TCP 443 超时；但端口 22 通，且 `140.82.112.3` / `140.82.113.3` / `20.27.177.113` 等 GitHub 边缘 IP 的 443 可用，`api.github.com`/`codeload` 也正常）。`gh`（Go 走 api.github.com）不受影响，**只有 git 的 https 传输挂掉**。
-   → 本机自带一个本地中继脚本绕过（把 `github.com:443` 转到可达的边缘 IP，纯本地、明文不落到第三方）：
+2. **`github.com` 的 443 被黑洞**（本机实测：`github.com` 解析到 `20.205.243.166` 时通常 TCP 443 超时，但个别 GitHub 边缘 IP 可用，且**可用 IP 会随时间变化**——2026-10-02 能用的 `140.82.112.3` 到 10-05 已失效）。`gh`（Go 走 api.github.com）不受影响，**只有 git 的 https 传输挂掉**。
+   → 本机自带一个本地中继脚本绕过（把 `github.com:443` 转到可达的边缘 IP，纯本地、明文不落到第三方）。脚本会**用真实 TLS 请求探测候选 IP**（TCP 通但收连接后黑洞的 IP 会被跳过），并在一旁路失效时自动重选：
    ```powershell
-   # 中继脚本：D:\dsh\trip project\.gh-relay.py（上游 IP 写在 UPSTREAM，目前 140.82.112.3）
-   $py='D:\apps\miniconda3\python.exe'
-   $p = Start-Process -FilePath $py -ArgumentList '"D:\dsh\trip project\.gh-relay.py"','8443' -PassThru -WindowStyle Hidden
-   Start-Sleep -Seconds 2
+   # 中继脚本：D:\dsh\trip project\.gh-relay.py（候选 IP 列表见 CANDIDATES，端口参数默认 8443）
+   & 'D:\apps\miniconda3\python.exe' 'D:\dsh\trip project\.gh-relay.py' 8443   # 后台跑着即可
    $b64=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:"+(& 'D:\apps\GitHub CLI\gh.exe' auth token)))
    git -c http.sslBackend=openssl -c http.proxy=http://127.0.0.1:8443 -c credential.helper= -c http.extraHeader="Authorization: Basic $b64" push origin main
-   Stop-Process -Id $p.Id -Force
    ```
    （`clone`/`pull`/`fetch` 同理，加上 `-c http.proxy=http://127.0.0.1:8443` 即可。若哪天 `github.com:443` 恢复直连，去掉 proxy 参数即可。**不要再**用旧版 HANDOVER 里的 `core.sshCommand` / `gh-proxy` 改写：`gh-proxy` 是第三方，会把 token 交给别人。）
 3. **`pip install` 必须提权**（`sandbox_permissions=danger-full-access`）：普通权限下 pip 在工作区内建临时目录会被沙箱拒绝。
@@ -62,7 +59,7 @@
    ```powershell
    $env:PYTHONPATH='D:\dsh\trip project\trip-collab\.pydeps'; & 'D:\apps\miniconda3\python.exe' -m pytest -q
    ```
-5. 前端 `node_modules/` 尚未安装；要用时按 §8 第 2 条（`npm install --ignore-scripts` + 工作区内缓存 + 提权）。
+5. 前端 `node_modules/` **已装好**（2026-10-05 实测 `vue-tsc -b`、`vite build`、vite dev 均可用；构建类命令按 §8 第 2 条需提权）。
 6. 用户明确选择：**沙箱保持现状，按需逐条申请提权**（不切完全权限）。
 7. 工作区根目录 ACL 曾被修复过（DSH 沙箱无法为 `D:\dsh\trip project` 授权），恢复脚本在 `D:\dsh\acl-recovery-trip\`。
 
