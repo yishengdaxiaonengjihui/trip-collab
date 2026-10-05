@@ -178,12 +178,26 @@ onMounted(load);
           </template>
         </div>
 
-        <div v-if="p.warnings.length" class="warn-box">
-          ⚠️ {{ p.warnings.join("；") }}
+        <div v-if="p.status === 'pending' || p.status === 'draft'" class="precheck">
+          <div class="precheck-title">采纳前预检 · 预测此刻采纳的后果</div>
+          <div v-if="p.hard_conflicts.length" class="danger-box">
+            ⛔ {{ p.hard_conflicts.join("；") }}<br />
+            采纳会被拦下，需填人工判定记录后强制放行。
+          </div>
+          <div v-if="p.warnings.length" class="warn-box">
+            ⚠️ {{ p.warnings.join("；") }}<br />
+            采纳时会要求二次确认。
+          </div>
+          <div v-if="!p.hard_conflicts.length && !p.warnings.length" class="ok-box">
+            ✔️ 预检通过：与当前定稿及其它待审核提议均无冲突，可直接采纳。
+          </div>
         </div>
-        <div v-if="p.hard_conflicts.length" class="danger-box">
-          ⛔ {{ p.hard_conflicts.join("；") }}
-        </div>
+        <template v-else>
+          <div v-if="p.warnings.length" class="warn-box">⚠️ 采纳时记录：{{ p.warnings.join("；") }}</div>
+          <div v-if="p.hard_conflicts.length" class="danger-box">
+            ⛔ 采纳时记录：{{ p.hard_conflicts.join("；") }}
+          </div>
+        </template>
 
         <div class="btn-row" v-if="p.status === 'pending'">
           <button class="btn btn-primary" :disabled="acting" @click="adopt(p)">采纳</button>

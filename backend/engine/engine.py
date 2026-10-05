@@ -136,6 +136,20 @@ class TripEngine:
     def pending_proposals(self) -> list[Proposal]:
         return [p for p in self.proposals.values() if p.status == STATUS_PENDING]
 
+    def preview_report(self, proposal_id: str) -> ConflictReport:
+        """预检：预测这条提议「此刻采纳」会遇到什么（只读，不改变任何状态）。
+
+        复用 adopt 的同一套 detect_conflicts 规则，所以待审核卡片上的告警与采纳时的
+        实际行为一致；区别只在于不落库、不推进版本，供采纳前提前展示。
+        """
+        p = self.proposal(proposal_id)
+        report = detect_conflicts(
+            p.events, self._state, [q for q in self.pending_proposals() if q.id != p.id]
+        )
+        if len(p.events) > 1 and not report.hard:
+            report.warnings.append(f"本提议包含 {len(p.events)} 条改动，采纳时需人工确认")
+        return report
+
     # ---------------- 提议生命周期 ----------------
 
     def create_proposal(

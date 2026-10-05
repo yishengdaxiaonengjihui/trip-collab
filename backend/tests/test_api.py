@@ -407,3 +407,99 @@ def test_item_time_tag_roundtrip(client):
     assert by_id["spot1"]["note"] == "需提前订票"
     assert by_id["hotel1"]["time"] == "21:00"
     assert by_id["hotel1"]["tag"] == "酒店"
+
+
+# ---------------- 待审核卡片预测性告警（采纳前预检） ----------------
+
+def _proposal_by_id(client, trip_id, proposal_id) -> dict:
+    cards = client.get(f"/api/trips/{trip_id}/proposals").json()
+    return next(c for c in cards if c["id"] == proposal_id)
+
+
+def test_pending_card_precheck_shows_dependency_warning(client):
+    """依赖告警在「待审核」阶段就出现在卡片上，而不是采纳时才弹。"""
+    trip = base_trip(client)  # d2_hotel 显式依赖 d1_train
+    pid = create_pending(
+        client,
+        trip["id"],
+        title="改车次",
+        events=[{"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 G8888"}}],
+    )
+    card = _proposal_by_id(client, trip["id"], pid)
+    assert card["status"] == "pending"
+    assert any("d2_hotel" in w and "依赖" in w for w in card["warnings"])
+    assert card["hard_conflicts"] == []
+    # 预检必须是只读的：不得推进版本
+    assert client.get(f"/api/trips/{trip['id']}").json()["version"] == 2
+
+
+def test_create_proposal_returns_precheck(client):
+    """草稿创建即返回预检结果。"""
+    trip = base_trip(client)
+    resp = client.post(
+        f"/api/trips/{trip['id']}/proposals",
+        json={
+            "title": "改车次草稿",
+            "reason": "",
+            "events": [
+                {"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 G8888"}}
+            ],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["status"] == "draft"
+    assert any("依赖" in w for w in body["warnings"])
+
+
+def test_pending_cards_precheck_hard_conflict_between_two(client):
+    """两条待审核提议并发改同一条目 -> 两张卡片都提前显示硬冲突。"""
+    trip = base_trip(client)
+    p1 = create_pending(
+        client,
+        trip["id"],
+        title="改车次 A",
+        events=[{"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 A"}}],
+    )
+    p2 = create_pending(
+        client,
+        trip["id"],
+        title="改车次 B",
+        events=[{"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 B"}}],
+    )
+    for pid, other in ((p1, p2), (p2, p1)):
+        card = _proposal_by_id(client, trip["id"], pid)
+        assert any(other in h for h in card["hard_conflicts"]), card["hard_conflicts"]
+    assert client.get(f"/api/trips/{trip['id']}").json()["version"] == 2
+
+
+def test_pending_card_precheck_notes_batch_change(client):
+    """多事件提议：预检提示采纳时需二次确认。"""
+    trip = base_trip(client)
+    pid = create_pending(
+        client,
+        trip["id"],
+        title="一批改动",
+        events=[
+            {"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 G8888"}},
+            {"kind": "deleted", "item_id": "d2_hotel", "payload": None},
+        ],
+    )
+    card = _proposal_by_id(client, trip["id"], pid)
+    assert any("2 条改动" in w for w in card["warnings"]), card["warnings"]
+
+
+def test_adopted_card_keeps_adoption_time_report(client):
+    """采纳后卡片显示采纳时刻留档的报告（历史事实），不受后续定稿变化影响。"""
+    trip = base_trip(client)
+    pid = create_pending(
+        client,
+        trip["id"],
+        title="改车次",
+        events=[{"kind": "updated", "item_id": "d1_train", "payload": {"title": "D1 高铁 G8888"}}],
+    )
+    r = client.post(f"/api/trips/{trip['id']}/proposals/{pid}/adopt", json={"confirmed": True})
+    assert r.status_code == 200, r.text
+    card = _proposal_by_id(client, trip["id"], pid)
+    assert card["status"] == "adopted"
+    assert any("依赖" in w for w in card["warnings"])

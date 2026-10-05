@@ -28,7 +28,7 @@
 1. ✅ **事件溯源引擎原型**：`backend/engine/`（提议/采纳/回滚/冲突判定/临时备选/序列化），25 个单元测试全绿，设计决策见 [docs/SPIKE.md](docs/SPIKE.md)。
 2. ✅ **移动端交互原型**：`frontend/prototype/index.html`（纯静态，双击即开），8 项自动化交互断言全绿。
 3. ⏳ **UX 实测（待执行）**：按 [docs/UX_TEST.md](docs/UX_TEST.md) 招募 3~5 名真实出行群体测试「提议-采纳-回滚」与旅途应急场景。
-4. ✅ **MVP 工程骨架**：FastAPI 后端（引擎集成 + SQLite 持久化 + 核心 REST API + 插件注册表雏形，42 测试全绿）+ Vue3/Vite/PWA 前端（五个视图对接 API，生产构建通过，端到端联调验证含依赖告警采纳流程）。
+4. ✅ **MVP 工程骨架**：FastAPI 后端（引擎集成 + SQLite 持久化 + 核心 REST API + 插件注册表雏形，48 测试全绿）+ Vue3/Vite/PWA 前端（五个视图对接 API，生产构建通过，端到端联调验证含依赖告警采纳流程、待审核卡片预测性告警）。
 
 详细需求见 [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)。
 
@@ -51,7 +51,7 @@ npm run dev
 ```
 
 - 演示数据：后端起来后执行 `python frontend/seed_demo.py`（建行程 + 基线条目 + 一条带依赖告警的待审核提议）。
-- 后端测试：仓库根目录 `python -m pytest`（42 个用例）；前端构建 `cd frontend && npm run build`。
+- 后端测试：仓库根目录 `python -m pytest`（48 个用例）；前端构建 `cd frontend && npm run build`。
 - 身份占位：请求头 `X-User-Id`（MVP 无登录系统），前端默认 `u_demo`。
 
 ## 架构速览

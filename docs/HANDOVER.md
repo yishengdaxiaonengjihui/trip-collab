@@ -3,8 +3,28 @@
 > **给下一个会话的快速启动指引**：本文件是跨会话继续工作的唯一权威入口。
 > 读完本文档后按「会话恢复指引」（§11）执行，即可无缝接续开发。
 
-- 最后更新：2026-10-02（接入新的开发机/工作区，业务代码未改）
+- 最后更新：2026-10-05（待审核卡片预测性告警已实现，48 测试绿）
 - 维护约定：**每个里程碑完成 / 每次会话结束前 / 需求或决策变化时，必须更新本文件**并提交推送。
+
+---
+
+## ✅ 2026-10-05：待审核卡片预测性告警（HANDOVER §9 #3 落地）
+
+**来源**：原型里待审核卡片会提前显示冲突/依赖告警，而实现里只有采纳时刻才检测（卡片上永远是空的）。
+
+**做法（关键决策：预检实时计算，不落库）**
+
+| 层 | 改动 |
+|---|---|
+| 引擎 `TripEngine.preview_report()` | 复用 adopt 的同一套 `detect_conflicts`，对「当前定稿 + 其它待审核提议」预检；多事件提议追加一条「包含 N 条改动，采纳时需人工确认」。**只读**，不推进版本、不写状态 |
+| 服务 `_proposal_out(p, engine)` | 草稿/待审核 → 用实时预检；已采纳/已拒绝等终态 → 仍用采纳时刻留档的 `last_report`（历史事实不随后续定稿变化） |
+| 前端 `ProposalsView.vue` | 待审核卡片新增「采纳前预检 · 预测此刻采纳的后果」区块：⛔ 硬冲突（会被拦下，需人工判定）/ ⚠️ 需二次确认 / ✔️ 预检通过；已采纳卡片仍显示「采纳时记录」 |
+| 样式 `style.css` | 新增 `.precheck/.precheck-title/.ok-box` |
+| 测试 | test_api.py +5：依赖告警提前可见、创建即返回预检、两条待审核并发改同条目双卡片硬冲突、多事件提示、采纳后仍保留采纳时刻报告 → **48 passed** |
+
+**为什么不在 create/submit 时存 last_report**：定稿和其它待审核提议随时会变，存快照必然过期（卡片会显示错误告警）。实时计算永远与采纳行为一致，且不引入新的持久化字段（`last_report` 语义保持「采纳/紧急应用时刻的报告」不变）。
+
+**验证**：`python -m pytest` 48 passed；`vue-tsc -b` 通过；`vite build` 通过；起服务后对演示行程实测 `GET /proposals` → 待审核卡片返回 `条目 d2_terra（秦始皇兵马俑）显式依赖被修改的条目 d1_train，请人工判断`。
 
 ---
 
@@ -124,7 +144,7 @@
 | 事件溯源引擎 `backend/engine/` | ✅ 完成（提议/采纳/回滚/冲突三型/临时备选/序列化） | 25 单测绿 |
 | 交互原型 `frontend/prototype/`（纯静态） | ✅ 完成（8 项交互断言） | 8/8 绿 |
 | **UX 实测** | ⏳ **待执行（需真人）** | 脚本见 `docs/UX_TEST.md` |
-| FastAPI 后端骨架 `backend/app/` | ✅ 完成（引擎集成 + SQLite 持久化 + 16 REST 路径 + 插件注册表） | **43 测试绿** + uvicorn 冒烟过 |
+| FastAPI 后端骨架 `backend/app/` | ✅ 完成（引擎集成 + SQLite 持久化 + 16 REST 路径 + 插件注册表） | **48 测试绿** + uvicorn 冒烟过 |
 | Vue3+Vite+PWA 前端 `frontend/src/` | ✅ 五视图 + 旅途应急 + PWA + **垂直时间线/类型色卡/暖橙配色** | 类型检查 + 生产构建 + 端到端验证过 |
 | 文档 | ✅ REQUIREMENTS(V1.3) / SPIKE / UX_TEST / HANDOVER | — |
 
@@ -150,7 +170,7 @@ trip-collab/
 │   │   ├── services/trip_service.py  # 业务编排：加载引擎→动作→保存；TripNotFoundError
 │   │   ├── routers/       #   trips/proposals/versions/members/plugins + deps.py(错误映射)
 │   │   └── plugins/registry.py  # 插件降级注册表雏形（weather/poi Mock，degraded 标记）
-│   └── tests/             # 25 引擎 + 3 序列化 + 15 API = 43 测试
+│   └── tests/             # 25 引擎 + 3 序列化 + 20 API = 48 测试
 │       └── .testdbs/      #   沙箱兼容：测试 db 固定目录（勿删，gitignore）
 ├── frontend/
 │   ├── prototype/         # 第 0 周交互原型（纯静态，UX 实测用它）
@@ -181,7 +201,7 @@ npm run dev        # http://localhost:5173（/api 自动代理到 8000）
 # 演示数据（后端起来后，frontend/ 下）
 python seed_demo.py
 # 后端全量测试（仓库根目录）
-python -m pytest   # 43 passed
+python -m pytest   # 48 passed
 # 前端类型检查 + 生产构建（frontend/ 下）
 node node_modules/vue-tsc/bin/vue-tsc.js -b && node node_modules/vite/bin/vite.js build
 ```
@@ -219,7 +239,7 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 |---|---|---|---|
 | 1 | **UX 实测（唯一需真人）** | 按 `docs/UX_TEST.md` 招募 3~5 名真实出行群体，用 `frontend/prototype/index.html` 走场景 A-D，按判据判定（**注意**：原型尚未同步新配色/时间线，是否同步待用户确认） | 无（用户本人参与） |
 | 2 | MVP 业务功能（实测通过后） | 邀请/角色权限落地、**最简 AI 生成提议到草稿**（LLM 把口语描述转引擎事件）、离线只读（PWA SW 已有雏形）、通知通道 | UX 实测通过 |
-| 3 | 待审核卡片**预测性告警** | 引擎目前采纳时刻才检测冲突（last_report），前端待审核卡片无预先告警（与原型 mock 有差异）——扩展：create/submit 时预检并存 last_report；或等 UX 实测反馈再定 | UX 实测反馈 |
+| 3 | ~~待审核卡片**预测性告警**~~ | ✅ **已实现（2026-10-05）**：`TripEngine.preview_report()` 实时预检，待审核卡片提前显示硬冲突/依赖告警（见文首当日记录） | — |
 | 4 | 讨论区/评论 | API 未实现（原型有 mock 评论），MVP 后置项 | 后置 |
 | 5 | ~~时间字段建模~~ | ✅ **已实现（2026-09-13）**：`Item.time`（展示时间，时间线排序/显示）+ `Item.tag`（类型） | — |
 | 6 | 插件升级 | weather/poi 从 Mock 换真实供应商（保持 degraded 降级语义） | 阶段 2 |
@@ -227,7 +247,7 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 
 ## 10. 产品决策点（待定记录）
 
-- **待审核告警展示**：采纳时刻检测（当前）vs 提交时刻预检（原型 UX）。倾向：UX 实测里观察用户是否困惑于"采纳时才弹窗"。
+- **待审核告警展示**：✅ **已定（2026-10-05）**：实时预检（`preview_report`），不落库、不存快照——避免卡片显示过期告警；采纳时刻的 `last_report` 仅作历史留档。
 - **emergency 语义**：提交即采纳、可 formalize/revoke（逆操作恢复采纳前快照），已定稿实现。
 - **版本起始**：新行程 v0（空事件流）；首个采纳 → v1。前端显示 v0。
 - **时间/类型字段**：✅ 已落地（2026-09-13）。`time` 存展示时间字符串（"HH:MM"，前端解析排序，无时间按 position 殿后）；`tag` 存中文类型值（景区/饭店/酒店/交通/购物/其他，空=其他），前端映射颜色。待议：是否引入枚举校验/多语言（MVP 暂用自由字符串）。
@@ -238,7 +258,7 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 
 1. 读本文件（`docs/HANDOVER.md`）→ 读 `docs/REQUIREMENTS.md` 对应章节。
 2. 确认仓库状态：`git status -sb`（应干净）+ `git log --oneline`（对照 §4 提交历史）。
-3. 跑基线验证：`python -m pytest`（应 43 passed）。
+3. 跑基线验证：`python -m pytest`（应 48 passed）。
 4. 若任务涉及前后端运行：按 §6 启动 + `python frontend/seed_demo.py` 播种。
 5. 先处理 §9 清单顶部的任务；遇到环境问题查 §8。
 6. **会话结束时**：把进展/决策/坑更新进本文件（更新日期与提交号），提交推送。

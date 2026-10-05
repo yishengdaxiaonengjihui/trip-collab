@@ -223,6 +223,31 @@ body {
   line-height: 1.5;
 }
 
+.ok-box {
+  background: var(--ok-bg);
+  color: #166534;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+/* 待审核卡片的「采纳前预检」区块：标题 + 彩色告警，与采纳后的历史记录区分开 */
+.precheck {
+  border-top: 1px dashed var(--line, #e5e7eb);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.precheck-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--sub);
+  margin-bottom: 2px;
+}
+
 .empty {
   text-align: center;
   color: var(--sub);

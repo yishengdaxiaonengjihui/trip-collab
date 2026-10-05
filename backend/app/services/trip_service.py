@@ -38,8 +38,16 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _proposal_out(p: Proposal) -> ProposalOut:
-    report: Optional[ConflictReport] = p.last_report
+def _proposal_out(p: Proposal, engine: Optional[TripEngine] = None) -> ProposalOut:
+    """组装响应。
+
+    草稿/待审核：用实时预检（预测此刻采纳会遇到什么，卡片提前告警）。
+    已采纳/已拒绝等终态：用采纳时刻留档的 last_report（历史事实，不随定稿变化）。
+    """
+    if engine is not None and p.status in (STATUS_DRAFT, STATUS_PENDING):
+        report: Optional[ConflictReport] = engine.preview_report(p.id)
+    else:
+        report = p.last_report
     return ProposalOut(
         id=p.id,
         title=p.title,
@@ -125,7 +133,7 @@ class TripService:
             emergency=data.emergency,
         )
         self._commit(trip_id, engine)
-        return _proposal_out(p)
+        return _proposal_out(p, engine)
 
     def list_proposals(self, trip_id: str, status: Optional[str] = None) -> list[ProposalOut]:
         engine = self._load(trip_id)
@@ -133,13 +141,13 @@ class TripService:
         if status:
             items = [p for p in items if p.status == status]
         items.sort(key=lambda p: p.created_at)
-        return [_proposal_out(p) for p in items]
+        return [_proposal_out(p, engine) for p in items]
 
     def submit(self, trip_id: str, proposal_id: str, actor: str) -> ProposalOut:
         engine = self._load(trip_id)
         p = engine.submit(proposal_id, actor)
         self._commit(trip_id, engine)
-        return _proposal_out(p)
+        return _proposal_out(p, engine)
 
     def adopt(
         self, trip_id: str, proposal_id: str, actor: str, body: AdoptIn
@@ -153,33 +161,33 @@ class TripService:
             resolution_note=body.resolution_note,
         )
         self._commit(trip_id, engine)
-        out = _proposal_out(engine.proposal(proposal_id))
+        out = _proposal_out(engine.proposal(proposal_id), engine)
         return out
 
     def reject(self, trip_id: str, proposal_id: str, actor: str, reason: str) -> ProposalOut:
         engine = self._load(trip_id)
         p = engine.reject(proposal_id, actor, reason)
         self._commit(trip_id, engine)
-        return _proposal_out(p)
+        return _proposal_out(p, engine)
 
     def submit_emergency(self, trip_id: str, proposal_id: str, actor: str) -> ProposalOut:
         """临时备选：提交即采纳（提议需以 emergency=True 创建，且处于草稿）。"""
         engine = self._load(trip_id)
         engine.submit_emergency(proposal_id, actor)
         self._commit(trip_id, engine)
-        return _proposal_out(engine.proposal(proposal_id))
+        return _proposal_out(engine.proposal(proposal_id), engine)
 
     def formalize(self, trip_id: str, proposal_id: str, actor: str) -> ProposalOut:
         engine = self._load(trip_id)
         p = engine.formalize(proposal_id, actor)
         self._commit(trip_id, engine)
-        return _proposal_out(p)
+        return _proposal_out(p, engine)
 
     def revoke(self, trip_id: str, proposal_id: str, actor: str) -> ProposalOut:
         engine = self._load(trip_id)
         p = engine.revoke(proposal_id, actor)
         self._commit(trip_id, engine)
-        return _proposal_out(p)
+        return _proposal_out(p, engine)
 
     # ---------------- 版本 / 回滚 ----------------
 
