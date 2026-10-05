@@ -259,3 +259,50 @@ API 速查（16 路径，前缀 `/api`）：`POST /trips`、`GET /trips[/{id}]`�
 4. 若任务涉及前后端运行：按 §6 启动 + `python frontend/seed_demo.py` 播种。
 5. 先处理 §9 清单顶部的任务；遇到环境问题查 §8。
 6. **会话结束时**：把进展/决策/坑更新进本文件（更新日期与提交号），提交推送。
+
+## 12. Cloudflare Workers 公网部署（2026-10-05 起）
+
+目标地址：**https://app.trip-collab.workers.dev**（账号 `18916498879@163.com`，workers.dev 子域已注册为 `trip-collab`）。
+
+### 部署形态
+
+一个 Worker 同时承担两件事，前后端同源，前端代码零改动：
+
+- 静态页面 → Cloudflare assets（`not_found_handling = "single-page-application"`，深链接刷新不 404）
+- `/api/*` → 同源反代到本机隧道（不需要 CORS，也不用构建期写死后端地址）
+
+相关文件：`frontend/wrangler.toml`（`main`/`assets`/`vars.API_ORIGIN`）、`frontend/worker/index.js`（12 行，assets + api 分流）。
+
+### 命令（两条都有坑，务必照抄）
+
+```powershell
+# 1) 安装（已装好，仅在重装/换机时执行；必须 --ignore-scripts，否则 npm 生命周期脚本 spawn EPERM）
+#    注意前缀是【仓库内】的 .tools，不是工作区根目录的 .tools —— 两个目录同名，容易搞混
+$env:npm_config_cache = "D:\dsh\trip project\.npm-cache"
+npm install --prefix "D:\dsh\trip project\trip-collab\.tools\wrangler" wrangler --no-audit --no-fund --ignore-scripts
+
+# 2) 部署（必须提权 danger-full-access，原因见下）
+cd frontend
+& 'D:\apps\nodejs\node.exe' '..\.tools\wrangler\node_modules\wrangler\wrangler-dist\cli.js' deploy
+```
+
+- **⚠️ `wrangler deploy` 必须提权（danger-full-access）。** esbuild 以管道 stdio 启动服务子进程，工作区沙箱会拦截（`spawn EPERM`，栈指向 `esbuild/lib/main.js: ensureServiceIsRunning`）。**同一原因导致 `wrangler whoami` 会永久挂起**（esbuild 在模块加载期就 spawn）——不要用 `whoami` 判断登录状态，直接 deploy 看报错。
+- 登录凭证已存在：`C:\Users\86189\AppData\Roaming\xdg.config\.wrangler\config\default.toml`。**不要设 `WRANGLER_HOME`**，设了反而读不到 token。
+- esbuild 打包失败时 `Total Upload: 0.42 KiB` 仍会打印，属正常（worker 本身很小）。
+
+### 当前阻塞（2026-10-05）
+
+**邮箱未验证 → Cloudflare 拒绝绑定 workers.dev 子域路由**：
+
+```
+A request to the Cloudflare API (/accounts/<id>/workers/scripts/app/subdomain) failed.
+You need to verify your email address to use Workers. [code: 10034]
+```
+
+此时**资源和 Worker 脚本都已上传成功**（`Uploaded app (9.84 sec)`），只差最后一步路由绑定。验证邮箱后**重跑一次 `deploy` 即可**，无需改动任何配置。验证入口：https://dash.cloudflare.com/profile （Resend verification email）。
+
+### 已知限制
+
+- **后端仍跑在本机**：Cloudflare 托管不了 Python/FastAPI。本机关机、或本机隧道进程停掉，页面能开但接口不通。
+- **隧道地址写死在 `vars.API_ORIGIN`**：隧道重启换新地址后，要改 `wrangler.toml` 重新 deploy（或用命名隧道 + 自有域名固化）。
+- 临时隧道（`trycloudflare.com`）与 Workers 是两套独立通路，可同时使用。

@@ -1,0 +1,15 @@
+name = "app"
+main = "worker/index.js"
+compatibility_date = "2025-10-01"
+
+# 前端构建产物（vite build 输出）
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# 后端仍跑在本机，经 Cloudflare 隧道暴露给 Worker。
+# 隧道地址每次重启都会变：改这里后重新 deploy 即可。
+[vars]
+API_ORIGIN = "https://characterized-brown-parcel-computation.trycloudflare.com"

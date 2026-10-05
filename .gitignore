@@ -54,3 +54,8 @@ backend/tests/tmp*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- 本地工具链（wrangler 部署 CLI 等，不入库）---
+.tools/
+.wrangler-home/
+frontend/.wrangler/
