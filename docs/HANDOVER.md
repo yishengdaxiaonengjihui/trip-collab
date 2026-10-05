@@ -306,3 +306,13 @@ You need to verify your email address to use Workers. [code: 10034]
 - **后端仍跑在本机**：Cloudflare 托管不了 Python/FastAPI。本机关机、或本机隧道进程停掉，页面能开但接口不通。
 - **隧道地址写死在 `vars.API_ORIGIN`**：隧道重启换新地址后，要改 `wrangler.toml` 重新 deploy（或用命名隧道 + 自有域名固化）。
 - 临时隧道（`trycloudflare.com`）与 Workers 是两套独立通路，可同时使用。
+
+### 推送代码也要提权（2026-10-05 更正）
+
+```powershell
+git -c http.sslBackend=openssl push origin main   # 必须提权 danger-full-access
+```
+
+沙箱下直接 push 会失败于 `could not read Username`，根因是 `credential.helper = manager` 需要启动子进程，而 MSYS `sh.exe`/`bash.exe` 在沙箱里创建信号管道被拒（`fatal error - couldn't create signal pipe, Win32 error 5`）。**不是网络问题，也不是凭据失效**——提权后立刻成功。
+
+另：**github.com 直连目前是通的**（`20.205.243.166:443` TLS 握手正常，本次推送未走代理），早前记录的中继（`.gh-relay.py`）本轮实测全部候选 IP 均不可达；该脚本留作备用，判断依据是「直连失败时先重试一次」——本轮首次 push 的 21 秒连接超时属瞬时抖动，重试即可。
