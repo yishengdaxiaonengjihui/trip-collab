@@ -345,7 +345,7 @@ Current Version ID: 6c37c9bc-0b5c-406c-80d4-7578d9b9b56c
 
 另注：本机网络本身也不稳定——排查期间 `github.com` 的 HTTPS 在 20 分钟内从 200 变成连接超时，tunnel 从 200 变成 ECONNRESET。**验证线上站点时若失败，先隔几分钟重试再下结论。**
 
-## 14. 上线方案变更：改用 Hugging Face Spaces（2026-10-06 决策，待执行）
+## 14. 上线方案变更：改用 Hugging Face Spaces（2026-10-06 决策，**已作废 → 见 §15**）
 
 ### 为什么改
 
@@ -421,3 +421,65 @@ seed 后 api/trips      : 1 条  （12 条目 / v12 / 1 条待审提议）
 ### 定论
 
 Cloudflare Workers 那份（§12）保留不动，作为冗余入口。**域名不必买**，VPS 方案搁置。
+
+## 15. 方案再变更：回到隧道直出完整应用（2026-10-07）
+
+### 为什么推翻 §14
+
+用户否决 HF Spaces：**创建/上传 Space 需要一次性代理**，对研究性报告场景不合适——演示当天同学老师不需要代理，但「必须翻墙才能维护」这一点已足以否定它，且现场若需重启或改配置就会卡住。
+
+复核时又发现一个更硬的问题：**原版 Worker 方案的门面地址已经不可用**。
+
+```
+app.trip-collab.workers.dev    HTTP  → http=000（20s 超时）
+                               DNS   → @223.5.5.5 返回 192.133.77.197（假 IP）
+```
+
+即 §12 记录的 workers.dev DNS 污染已从「本机打不开」恶化到彻底不可用。**所以「回到原版隧道」不能是「Worker + workers.dev」，否则演示当场打不开。**
+
+### 新拓扑：隧道直出完整应用
+
+```
+老师/同学 → https://<随机>.trycloudflare.com
+                     ↓ cloudflared
+               127.0.0.1:8000
+               ├─ /       前端 frontend/dist（SPAStaticFiles，深链接回落 index.html）
+               └─ /api/*  FastAPI
+```
+
+- **同源** → 无需 CORS、无需 Worker、无需 `vars.API_ORIGIN`
+- 不买域名、不用梯子、不用 Cloudflare 账号
+- 依据：§12 对照实验证明该网络能正确解析并连通 trycloudflare 的 Cloudflare IP（`104.16.231.132` 等）
+
+### 保留 / 撤除
+
+| 文件 | 处置 | 原因 |
+|---|---|---|
+| `backend/app/main.py`（`SPAStaticFiles`） | **保留** | 隧道直出完整应用的开关；`dist` 不存在时自动跳过，向后兼容 |
+| `frontend/seed_demo.py`（`TRIP_API_BASE`） | **保留** | 默认值不变，向后兼容 |
+| `.gitignore`（`.vdeps/.piptmp/.verify`） | **保留** | 本地缓存忽略，与部署形态无关 |
+| `Dockerfile`、`docker/entrypoint.sh`、`.dockerignore`、`.gitattributes` | **撤除** | 纯 HF 打包产物 |
+| `README.md` 顶部 HF front matter | **撤除** | HF 专用元数据 |
+
+HF 那套的文件与验收记录仍留在提交 `e6f63a0` / `1f3b44d` 中；将来若要重走 HF 路线，`git cherry-pick` 即可恢复。
+
+### 代价（已与用户确认接受）
+
+- **笔记本必须保持唤醒 + 联网 + `cloudflared` 存活**，否则页面能开、接口不通
+- **临时隧道地址每次重启都变** → 每次演示前重新分享新网址（需固定地址则走 §12 的「命名隧道 + 自有域名」）
+- trycloudflare 偶发 ECONNRESET（§12 已记录）→ 隔几分钟重试即可
+
+### 演示操作手册
+
+```powershell
+# 0) 前置：frontend/dist 必须已构建（npm run build；vite build 需提权，见 §13）
+
+# 1) 起后端（同时托管 frontend/dist 与 /api）
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+
+# 2) 播种演示数据（幂等，每次新建一个行程）
+python frontend/seed_demo.py
+
+# 3) 起隧道 → 在输出里找 https://<随机>.trycloudflare.com，分享给老师同学
+& 'D:\dsh\trip project\.tools\cloudflared-windows-amd64.exe' tunnel --url http://127.0.0.1:8000
+```

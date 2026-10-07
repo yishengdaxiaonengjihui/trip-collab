@@ -1,5 +1,0 @@
-# 统一 LF：Dockerfile / entrypoint.sh 若被转成 CRLF，容器内 shell 会直接报错
-* text=auto eol=lf
-
-*.png binary
-*.ico binary
