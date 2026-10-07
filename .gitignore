@@ -59,3 +59,8 @@ desktop.ini
 .tools/
 .wrangler-home/
 frontend/.wrangler/
+
+# --- 本地验收/依赖缓存（不入库）---
+.vdeps/
+.piptmp/
+.verify/

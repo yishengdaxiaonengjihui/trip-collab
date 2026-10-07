@@ -3,11 +3,12 @@
 幂等说明：每次运行会新建一个行程（不清理旧数据）。
 """
 
+import os
 from pathlib import Path
 
 import httpx
 
-BASE = "http://127.0.0.1:8000"
+BASE = os.environ.get("TRIP_API_BASE", "http://127.0.0.1:8000")
 H = {"X-User-Id": "u_demo"}
 
 

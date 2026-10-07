@@ -372,16 +372,39 @@ huggingface.co 管理站：hosts 文件 127.0.0.1 + DNS 投毒（162.125.80.3 / 
 
 而「数据不持久」在本场景是**优点**：容器启动时用已有的 `frontend/seed_demo.py` 灌演示数据 → 每次唤醒都是干净、满数据的演示环境。
 
-### 待产出文件（下次会话直接做，预计 1 轮）
+### 已产出文件（2026-10-07 完成）
 
 | 文件 | 内容 |
 |---|---|
-| `Dockerfile`（新增） | 多阶段：node 构建 `frontend/` → `dist/`；python 运行时装 `backend/requirements.txt`，COPY dist，监听 **7860** |
-| `README.md`（新增元数据） | `sdk: docker` + `app_port: 7860` |
-| `backend/app/main.py` | 挂载 `StaticFiles(directory=..., html=True)` + SPA fallback（约 10 行） |
-| 启动脚本 | 容器启动时 `python seed_demo.py`，再 `uvicorn` |
+| `Dockerfile`（新增） | 两阶段：`node:22-slim` 跑 `npm ci && npm run build` → `python:3.12-slim` 装后端依赖、COPY `dist`、非 root（uid 1000）、`EXPOSE 7860` |
+| `.dockerignore`（新增） | 排除 `node_modules`/`dist`/`.pydeps`/`.tmp` 等。**必须排除 `frontend/node_modules`**，否则 `COPY frontend/` 会覆盖 `npm ci` 的结果 |
+| `docker/entrypoint.sh`（新增） | 起 uvicorn → 轮询 `/health` → `TRIP_DB` 不存在时跑 `seed_demo.py` → `wait`；LF 行尾，`trap` 转发 TERM |
+| `README.md` | 顶部加 HF front matter：`sdk: docker` + `app_port: 7860` |
+| `backend/app/main.py` | `SPAStaticFiles` 挂到 `/`；`/api` 前缀不回落 |
+| `frontend/seed_demo.py` | `BASE` 改为读 `TRIP_API_BASE`（默认值不变，向后兼容） |
 
-验收方式：本机 `docker build` + `docker run -p 7860:7860` 跑通，再上传。
+### 本地验收（2026-10-07 通过）
+
+本机**没装 Docker**，改为「不用 Docker 跑同一条链路」：`npm run build` 产出 `dist/` → uvicorn 起在 **7860** → curl 打真实 HTTP。
+
+```
+health                 : 200
+index  /               : 200   （含 <div id="app">）
+deeplink /trips/x      : 200   （回落内容与 index 逐字节相同）
+api/nope (期望 404)    : 404   （JSON，未回落成 HTML）
+sw.js / assets js      : 200
+真实深链接 /trips/<id> : 200
+seed 后 api/trips      : 1 条  （12 条目 / v12 / 1 条待审提议）
+```
+
+**过程中修掉一个真 bug**：`StaticFiles` 抛的是 `starlette.exceptions.HTTPException`，而 `fastapi.exceptions.HTTPException` 是它的**子类**——最初 `except fastapi.HTTPException` 接不住，深链接刷新直接 404（首轮实测已复现）。现改为捕获 starlette 版本。
+
+### 遗留环境问题（与 HF 方案无关，但会挡路）
+
+- 工作区 `.pydeps/`、`.tmp/`、`.piptmp/` **权限异常**：`Get-Content` 报 Access denied，pip 无法清理自己的临时目录。本机跑后端/测试要读 `.pydeps` → **目前必须提权（danger-full-access）**。属工作区 ACL 问题，未修复。
+- `%TEMP%\dsh-*` 不可写 → pip 必须先把 `$env:TMP` 指向工作区内目录。
+- `vite build` 需提权（esbuild spawn EPERM，同 §13）。
+- 本机 PowerShell 不支持 `Invoke-WebRequest -SkipHttpErrorCheck`，探测 HTTP 一律用 `curl.exe`。
 
 ### 用户侧三步（只有这三步做不了，必须用户本人）
 

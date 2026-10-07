@@ -1,3 +1,13 @@
+---
+title: Trip Collab
+emoji: 🗺️
+colorFrom: teal
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # trip-collab — AI 多人提议式旅行协作规划系统
 
 面向朋友、家庭、小队长途结伴出游的**行程方案协作工具**（移动端 PWA 优先）。
